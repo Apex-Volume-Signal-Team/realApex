@@ -18,9 +18,9 @@ async def connect_db():
             if '?' in db_name:
                 db_name = db_name.split('?')[0]
             if not db_name:
-                db_name = 'solRadar'
+                db_name = 'apexDB'
         else:
-            db_name = 'solRadar'
+            db_name = 'apexDB'
 
         print(f"Using database name: {db_name}")
         db = client[db_name]
