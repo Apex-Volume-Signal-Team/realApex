@@ -56,7 +56,7 @@ class MevXAPI:
             params = {
                 'chain': 'sol',
                 'token': token_address.strip(),
-                'limit': 50,
+                'limit': 100,
                 'orderBy': 'amount desc'
             }
 
