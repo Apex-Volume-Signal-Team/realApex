@@ -1,0 +1,12 @@
+aiohttp  
+base58  
+fastapi  
+motor  
+pymongo  
+python-dotenv  
+solana  
+solders  
+pyTelegramBotAPI  
+uvicorn
+flask
+aiohttp
