@@ -126,6 +126,27 @@ def display_msg(data: Dict[str, Any]) -> str:
 
         socials_text = " | ".join(socials) if socials else "No socials"
 
+        # Build exchange link based on exchange name and CA
+        def get_exchange_link(exchange_name: str, ca: str) -> str:
+            """Generate exchange link based on exchange name"""
+            ca_lower = ca.lower()
+
+            if ca_lower.endswith('bonk'):
+                return f'<a href="https://bonk.fun/token/{ca}">Bonk.fun</a>'
+            elif ca_lower.endswith('pump'):
+                return f'<a href="https://pump.fun/{ca}">Pump.fun</a>'
+            elif exchange_name.lower() in ['meteora']:
+                return f'<a href="https://app.meteora.ag/pools/{ca}">Meteora</a>'
+            elif exchange_name.lower() in ['raydium', 'launchlabs']:
+                return f'<a href="https://raydium.io/swap/?inputCurrency=sol&outputCurrency={ca}">Raydium</a>'
+            elif exchange_name.lower() in ['orca']:
+                return f'<a href="https://www.orca.so/swap?tokenIn=So11111111111111111111111111111111111111112&tokenOut={ca}">Orca</a>'
+            else:
+                # For uncommon exchanges, use Jupiter
+                return f'<a href="https://jup.ag/swap/SOL-{ca}">Jupiter</a>'
+
+        exchange_link = get_exchange_link(exchange, mint)
+
         message = f"""💎 <b>{name} | ${symbol}</b>
 
 <b>CA:</b> <code>{mint}</code>
@@ -140,7 +161,7 @@ def display_msg(data: Dict[str, Any]) -> str:
 
 🌐 <b>Socials:</b> {socials_text}
 
-🔗 <b>Exchange:</b> {exchange}
+🔗 <b>Exchange:</b> {exchange_link}
 📦 <b>Insider Wallet:</b> {insider_wallet_percentage:.2f}%
 🎯 <b>Sniper Wallet:</b> {sniper_wallet_percentage:.2f}%
 
@@ -286,7 +307,7 @@ def alert_msg(token_data: Dict[str, Any], current_mc: float, alert_level: float)
 
         # Use multiple_mc if available, otherwise fallback to current_mc
         to_mc = token_data.get('multiple_mc', current_mc)
-        
+
         message = f"""🎯 <b>{alert_level:.1f}x ${token_data.get('symbol', 'N/A')} in {time_text}</b>
 
 📊 <b>From</b> ${format_number(token_data.get('market_cap', 0))} <b>→</b> ${format_number(to_mc)}
