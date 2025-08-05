@@ -235,7 +235,7 @@ class TelegramBot:
             # Calculate 48 hours ago from current time - same filter as send_ath_batch_message
             from datetime import datetime, timedelta
             forty_eight_hours_ago = datetime.now() - timedelta(hours=48)
-            
+
             # Get tokens with multiple >= 5.0x from the last 48 hours (same as initial message)
             ath_tokens = await TokenService.get_tokens_by_query({
                 "multiple": {"$gte": 5.0},
@@ -424,8 +424,8 @@ class TelegramBot:
                 import time
                 current_time = time.time()
 
-                # Background token data updates every 25 seconds
-                if current_time - last_background_update >= 25:
+                # Background token data updates every 10 seconds
+                if current_time - last_background_update >= 10:
                     print("Running background token data updates...")
                     from utils import background_token_monitoring
                     await background_token_monitoring(
@@ -436,8 +436,8 @@ class TelegramBot:
                     )
                     last_background_update = current_time
 
-                # Check database for alerts every 10 seconds
-                if current_time - last_alert_check >= 10:
+                # Check database for alerts every 5 seconds
+                if current_time - last_alert_check >= 5:
                     print("Checking database for alert conditions...")
                     from utils import check_database_for_alerts
                     await check_database_for_alerts(
