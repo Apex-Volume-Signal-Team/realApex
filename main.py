@@ -68,15 +68,21 @@ class TelegramBot:
 
         @self.bot.message_handler(commands=['start'])
         def start_command(message):
-            self.run_async_in_executor(self.handle_start(message))
+            # Only respond to start command in private messages (DMs)
+            if message.chat.type == 'private':
+                self.run_async_in_executor(self.handle_start(message))
 
         @self.bot.message_handler(commands=['promote'])
         def promote_command(message):
-            self.run_async_in_executor(self.handle_promote(message))
+            # Only respond to promote command in private messages (DMs)
+            if message.chat.type == 'private':
+                self.run_async_in_executor(self.handle_promote(message))
 
         @self.bot.message_handler(func=lambda message: True)
         def handle_text(message):
-            self.run_async_in_executor(self.handle_message(message))
+            # Only respond to text messages in private messages (DMs)
+            if message.chat.type == 'private':
+                self.run_async_in_executor(self.handle_message(message))
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def handle_callback(call):
