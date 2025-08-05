@@ -495,7 +495,7 @@ async def check_database_for_alerts(bot, channel_handle: str, config):
                                 print(f"✅ Token {token.get('name')} forwarded to free channel at {current_multiple_to_check:.1f}x - Message ID: {forwarded_message.message_id}")
                             else:
                                 print(f"⚠️ Forward message sent but no message ID available for {token.get('name')}")
-                            
+
                             await TokenService.update_token(token['mint'], forward_update_data)
                         except Exception as forward_error:
                             print(f"Error sending forwarded message during alert: {forward_error}")
@@ -557,7 +557,7 @@ async def check_database_for_alerts(bot, channel_handle: str, config):
                                     print(f"✅ Token {token.get('name')} forwarded to free channel at {current_multiple_to_check:.1f}x - Message ID: {forwarded_message.message_id}")
                                 else:
                                     print(f"⚠️ Forward message sent but no message ID available for {token.get('name')}")
-                                
+
                                 await TokenService.update_token(token['mint'], forward_update_data)
                             except Exception as forward_error:
                                 print(f"Error sending forwarded message during alert: {forward_error}")
@@ -644,7 +644,7 @@ async def send_ath_batch_message(bot, free_channel: str):
         # Calculate 48 hours ago from current time
         from datetime import datetime, timedelta
         forty_eight_hours_ago = datetime.now() - timedelta(hours=48)
-        
+
         # Get tokens with multiple >= 5.0x from the last 48 hours
         ath_tokens = await TokenService.get_tokens_by_query({
             "multiple": {"$gte": 5.0},
