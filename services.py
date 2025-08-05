@@ -44,9 +44,9 @@ class TokenService:
     async def get_tokens_for_alert_check() -> list:
         """Get tokens that need alert checking"""
         from datetime import datetime, timedelta
-        forty_eight_hours_ago = datetime.now() - timedelta(hours=48)
+        five_days_ago = datetime.now() - timedelta(hours=120)
         return await Token.find({
-            "created_at": {"$gte": forty_eight_hours_ago},
+            "created_at": {"$gte": five_days_ago},
             "msg_id": {"$exists": True}
         })
 
