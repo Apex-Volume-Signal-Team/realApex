@@ -28,6 +28,7 @@ class Config:
         self.GROUP_CHAT_ID = os.getenv('GROUP_CHAT_ID', '')  # Group chat ID (starts with -)
         self.INITIAL_CALL_TOPIC_ID = int(os.getenv('INITIAL_CALL_TOPIC_ID', '0'))  # Topic ID within the group
         self.FREE_CALL_CHANNEL = os.getenv('FREE_CALL_CHANNEL', '@your_free_channel')
+        self.PREMIUM_CHANNEL = os.getenv('PREMIUM_CHANNEL', '@your_premium_channel')
         self.REFERER_HANDER = os.getenv('REFERER_HANDER', '')
 
         self.PROMOTE_FEE = float(os.getenv('PROMOTE_FEE', '0.1'))
@@ -42,7 +43,7 @@ class Config:
         self.MAX_DEV_HOLD_PCT = float(os.getenv('MAX_DEV_HOLD_PCT', '15'))
         self.MIN_TOP10HOLD_PCT = float(os.getenv('MIN_TOP10HOLD_PCT', '10'))
         self.MAX_TOP10HOLD_PCT = float(os.getenv('MAX_TOP10HOLD_PCT', '50'))
-        
+
         self.ALERT_MULTIPLE_LIMIT = 2.0
         self.ALERT_CHECK_INTERVAL = int(os.getenv('ALERT_CHECK_INTERVAL', '1800'))  # 30 minutes in seconds
         self.FREE_CHANNEL_FORWARD_MULTIPLE = float(os.getenv('FREE_CHANNEL_FORWARD_MULTIPLE', '5.0'))
