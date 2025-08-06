@@ -77,6 +77,15 @@ async def promotion_msg(bot, channel_handle: str, element: Dict[str, Any], holde
             disable_web_page_preview=True,
             message_thread_id=config.INITIAL_CALL_TOPIC_ID
         )
+
+        # Send promotion to premium channel too
+        bot.send_message(
+            config.PREMIUM_CHANNEL,
+            msg,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+            disable_web_page_preview=True
+        )
     except Exception as err:
         print(f"Error sending promotion message: {err}")
 
@@ -184,6 +193,15 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             parse_mode="HTML", 
             disable_web_page_preview=disable_preview,
             message_thread_id=config.INITIAL_CALL_TOPIC_ID
+        )
+
+        # Send to premium channel too
+        bot.send_message(
+            config.PREMIUM_CHANNEL,
+            msg,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+            disable_web_page_preview=disable_preview
         )
 
         # Save token to database with message ID
@@ -890,6 +908,15 @@ async def send_token_alert(bot, channel_handle: str, token_data: Dict[str, Any],
                 disable_web_page_preview=True,
                 message_thread_id=config.INITIAL_CALL_TOPIC_ID
             )
+
+            # Send alert to premium channel too
+            bot.send_message(
+                config.PREMIUM_CHANNEL,
+                alert_message,
+                reply_markup=keyboard,
+                parse_mode="HTML",
+                disable_web_page_preview=True
+            )
             print(f"✅ Alert sent: {token_name} - {multiple:.1f}x (replied to msg_id: {reply_to_msg_id})")
         except Exception as telegram_error:
             # If reply fails, send without reply
@@ -902,6 +929,15 @@ async def send_token_alert(bot, channel_handle: str, token_data: Dict[str, Any],
                     parse_mode="HTML",
                     disable_web_page_preview=True,
                     message_thread_id=config.INITIAL_CALL_TOPIC_ID
+                )
+
+                # Send alert to premium channel too
+                bot.send_message(
+                    config.PREMIUM_CHANNEL,
+                    alert_message,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True
                 )
                 print(f"✅ Alert sent without reply: {token_name} - {multiple:.1f}x")
             else:
