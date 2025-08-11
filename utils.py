@@ -694,13 +694,61 @@ async def send_ath_page(bot, free_channel: str, all_ath_tokens: list, page: int,
             print(f"Invalid page requested: {page} (total pages: {total_pages})")
             return
 
+        # Calculate 24-hour statistics (from 7pm UTC yesterday to now)
+        from datetime import datetime, timezone, timedelta
+        now_utc = datetime.now(timezone.utc)
+        twenty_four_hours_ago = now_utc - timedelta(hours=24)
+
+        # Get tokens called in the last 24 hours
+        from services import TokenService
+        tokens_24h = await TokenService.get_tokens_by_query({
+            "created_at": {"$gte": twenty_four_hours_ago}
+        })
+
+        # Calculate 24-hour metrics
+        total_calls = len(tokens_24h)
+        win_count = sum(1 for token in tokens_24h if token.get('multiple', 1.0) >= 1.5)
+        win_rate = (win_count / total_calls * 100) if total_calls > 0 else 0.0
+
+        # Calculate average profit
+        total_multiple = sum(token.get('multiple', 1.0) for token in tokens_24h)
+        avg_profit = total_multiple / total_calls if total_calls > 0 else 0.0
+
+        # Count tokens in different multiple ranges
+        range_1_5x = sum(1 for token in tokens_24h if 1.5 <= token.get('multiple', 1.0) < 5.0)
+        range_5x = sum(1 for token in tokens_24h if 5.0 <= token.get('multiple', 1.0) < 10.0)
+        range_10x = sum(1 for token in tokens_24h if 10.0 <= token.get('multiple', 1.0) < 15.0)
+        range_15x = sum(1 for token in tokens_24h if token.get('multiple', 1.0) >= 15.0)
+
+        # Find best performing token
+        best_token = None
+        best_multiple = 0.0
+        for token in tokens_24h:
+            if token.get('multiple', 1.0) > best_multiple:
+                best_multiple = token.get('multiple', 1.0)
+                best_token = token
+
+        best_text = f"{best_token.get('symbol', 'N/A')} {best_multiple:.1f}x" if best_token else "N/A"
+
         ## Get tokens for this page
         start_idx = (page - 1) * tokens_per_page
         end_idx = start_idx + tokens_per_page
         page_tokens = all_ath_tokens[start_idx:end_idx]
 
-        # Create message content with new format
-        message_lines = ["<b>ATH OF TOKENS CALLED</b>\n"]
+        # Create message content with 24-hour stats and ATH heading
+        message_lines = [
+            "<b>💎 24hours Token Signal</b>\n",
+            f"⚡️ Total Calls: <b>{total_calls}</b>",
+            f"📈 +50% Win Rate: <b>{win_rate:.1f}%</b>",
+            f"💰 Wins Avg Profit: <b>{avg_profit:.1f}x</b>\n",
+            "24hr Xs Alerts:",
+            f"💸 1.5X+: <b>{range_1_5x}</b>",
+            f"💸 5X+: <b>{range_5x}</b>",
+            f"💸 10X+: <b>{range_10x}</b>",
+            f"💸 15X+: <b>{range_15x}</b>\n",
+            f"🤑 Best: <b>{best_text}</b>\n",
+            "<b>ATH OF TOKENS CALLED IN THE LAST 48 HOURS</b>\n"
+        ]
 
         for i, token in enumerate(page_tokens):
             created_at = token.get('created_at', datetime.now())
