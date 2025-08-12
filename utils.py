@@ -715,7 +715,7 @@ async def send_ath_page(bot, free_channel: str, all_ath_tokens: list, page: int,
         avg_profit = total_multiple / total_calls if total_calls > 0 else 0.0
 
         # Count tokens in different multiple ranges
-        range_1_5x = sum(1 for token in tokens_24h if 1.5 <= token.get('multiple', 1.0) < 5.0)
+        range_2x = sum(1 for token in tokens_24h if 2.0 <= token.get('multiple', 1.0) < 5.0)
         range_5x = sum(1 for token in tokens_24h if 5.0 <= token.get('multiple', 1.0) < 10.0)
         range_10x = sum(1 for token in tokens_24h if 10.0 <= token.get('multiple', 1.0) < 15.0)
         range_15x = sum(1 for token in tokens_24h if token.get('multiple', 1.0) >= 15.0)
@@ -742,7 +742,7 @@ async def send_ath_page(bot, free_channel: str, all_ath_tokens: list, page: int,
             f"📈 +50% Win Rate: <b>{win_rate:.1f}%</b>",
             f"💰 Wins Avg Profit: <b>{avg_profit:.1f}x</b>\n",
             "24hr Xs Alerts:",
-            f"💸 1.5X+: <b>{range_1_5x}</b>",
+            f"💸 2X+: <b>{range_2x}</b>",
             f"💸 5X+: <b>{range_5x}</b>",
             f"💸 10X+: <b>{range_10x}</b>",
             f"💸 15X+: <b>{range_15x}</b>\n",
