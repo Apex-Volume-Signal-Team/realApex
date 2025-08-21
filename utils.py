@@ -196,7 +196,7 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
         )
 
         # Send to premium channel too
-        bot.send_message(
+        premium_msg = bot.send_message(
             config.PREMIUM_CHANNEL,
             msg,
             reply_markup=keyboard,
@@ -204,8 +204,9 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             disable_web_page_preview=disable_preview
         )
 
-        # Save token to database with message ID
+        # Save token to database with both message IDs
         token_data['msg_id'] = sent_msg.message_id
+        token_data['premium_msg_id'] = premium_msg.message_id
         await TokenService.create_token(token_data)
 
         print(f"✅ Token called and saved: {token_data['name']} ({token_data['symbol']}) - ${format_number(market_cap)} MC")
@@ -945,6 +946,7 @@ async def send_token_alert(bot, channel_handle: str, token_data: Dict[str, Any],
 
         # Reply to original message if msg_id exists
         reply_to_msg_id = token_data.get('msg_id')
+        premium_reply_to_msg_id = token_data.get('premium_msg_id')
 
         try:
             bot.send_message(
@@ -957,15 +959,32 @@ async def send_token_alert(bot, channel_handle: str, token_data: Dict[str, Any],
                 message_thread_id=config.INITIAL_CALL_TOPIC_ID
             )
 
-            # Send alert to premium channel too
-            bot.send_message(
-                config.PREMIUM_CHANNEL,
-                alert_message,
-                reply_markup=keyboard,
-                parse_mode="HTML",
-                disable_web_page_preview=True
-            )
-            print(f"✅ Alert sent: {token_name} - {multiple:.1f}x (replied to msg_id: {reply_to_msg_id})")
+            # Send alert to premium channel - reply to premium message if available
+            try:
+                bot.send_message(
+                    config.PREMIUM_CHANNEL,
+                    alert_message,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                    reply_to_message_id=premium_reply_to_msg_id,
+                    disable_web_page_preview=True
+                )
+                print(f"✅ Alert sent: {token_name} - {multiple:.1f}x (replied to msg_id: {reply_to_msg_id}, premium_msg_id: {premium_reply_to_msg_id})")
+            except Exception as premium_error:
+                # If premium reply fails, send without reply to premium channel
+                if "message to be replied not found" in str(premium_error):
+                    print(f"Premium message not found, sending alert without reply to premium channel for {token_name}")
+                    bot.send_message(
+                        config.PREMIUM_CHANNEL,
+                        alert_message,
+                        reply_markup=keyboard,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True
+                    )
+                    print(f"✅ Alert sent: {token_name} - {multiple:.1f}x (replied to msg_id: {reply_to_msg_id}, premium standalone)")
+                else:
+                    raise premium_error
+
         except Exception as telegram_error:
             # If reply fails, send without reply
             if "message to be replied not found" in str(telegram_error):
@@ -979,15 +998,30 @@ async def send_token_alert(bot, channel_handle: str, token_data: Dict[str, Any],
                     message_thread_id=config.INITIAL_CALL_TOPIC_ID
                 )
 
-                # Send alert to premium channel too
-                bot.send_message(
-                    config.PREMIUM_CHANNEL,
-                    alert_message,
-                    reply_markup=keyboard,
-                    parse_mode="HTML",
-                    disable_web_page_preview=True
-                )
-                print(f"✅ Alert sent without reply: {token_name} - {multiple:.1f}x")
+                # Send alert to premium channel - try to reply to premium message if available
+                try:
+                    bot.send_message(
+                        config.PREMIUM_CHANNEL,
+                        alert_message,
+                        reply_markup=keyboard,
+                        parse_mode="HTML",
+                        reply_to_message_id=premium_reply_to_msg_id,
+                        disable_web_page_preview=True
+                    )
+                    print(f"✅ Alert sent without reply: {token_name} - {multiple:.1f}x (premium replied to: {premium_reply_to_msg_id})")
+                except Exception as premium_error:
+                    # If premium reply also fails, send without reply to premium channel
+                    if "message to be replied not found" in str(premium_error):
+                        bot.send_message(
+                            config.PREMIUM_CHANNEL,
+                            alert_message,
+                            reply_markup=keyboard,
+                            parse_mode="HTML",
+                            disable_web_page_preview=True
+                        )
+                        print(f"✅ Alert sent without reply: {token_name} - {multiple:.1f}x (both standalone)")
+                    else:
+                        raise premium_error
             else:
                 raise telegram_error
 
