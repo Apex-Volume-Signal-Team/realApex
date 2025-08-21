@@ -401,8 +401,30 @@ def link_btn(mint_address: str, symbol: str = "", is_forwarded: bool = False, is
             ])
 
         elif is_alert:
-            # For regular alert messages (not forwarded), NO buttons at all
-            pass
+            # For regular alert messages (not forwarded), add same buttons as regular calls
+            if symbol:
+                search_term = f"${symbol} OR {mint_address}"
+            else:
+                search_term = mint_address
+            twitter_search_url = f"https://twitter.com/search?q={search_term}"
+
+            content.append([{"text": "🔍 Search On X(twitter)", "url": twitter_search_url}])
+
+            # Add trading bot buttons for regular alert messages
+            content.extend([
+                [
+                    {"text": "👾 MevX (Bot)", "url": f"https://t.me/MevxTradingBot?start={mint_address}-{referer}"},
+                    {"text": "🟣 STB", "url": f"https://t.me/solana_trojanbot?start=r-{referer}-{mint_address}"}
+                ],
+                [
+                    {"text": "Ⓜ️ Maestro", "url": f"http://t.me/maestro?start={mint_address}-{referer}"},
+                    {"text": "🐴 Trojan", "url": f"https://t.me/odysseus_trojanbot?start=r-{referer}-{mint_address}"}
+                ],
+                [
+                    {"text": "🤖 GMGN", "url": f"https://t.me/GMGN_sol02_bot?start=i_eJTMUII1_c_{mint_address}"},
+                    {"text": "🌸 Bloom", "url": f"https://t.me/BloomSolana_bot?start=ref_W783FKGM3D_ca_{mint_address}"}
+                ]
+            ])
 
         else:
             # For regular calls, add Twitter search as first full-width button
