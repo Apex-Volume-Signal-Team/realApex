@@ -216,6 +216,7 @@ class TelegramBot:
                 # Handle ATH pagination with or without timestamp
                 try:
                     parts = call.data.split('_')
+                    # Extract page number (always at index 2, regardless of timestamp)
                     page = int(parts[2])
                     print(f"ATH pagination request: page {page} (callback_data: {call.data})")
                     await self.handle_ath_pagination(call, page)
