@@ -778,15 +778,13 @@ async def send_ath_page(bot, free_channel: str, all_ath_tokens: list, page: int,
         # Add Join Premium button first
         keyboard.add(types.InlineKeyboardButton("💎 Join Premium", url="https://t.me/onlysubsbot?start=ApexSignal"))
 
-        # Add navigation buttons with timestamp for persistence
-        import time
-        current_timestamp = int(time.time())
+        # Add navigation buttons without timestamps for consistency
         nav_buttons = []
 
         if page > 1:
-            nav_buttons.append(types.InlineKeyboardButton("⏮️ Previous", callback_data=f"ath_page_{page-1}_{current_timestamp}"))
+            nav_buttons.append(types.InlineKeyboardButton("⏮️ Previous", callback_data=f"ath_page_{page-1}"))
         if page < total_pages:
-            nav_buttons.append(types.InlineKeyboardButton("Next ⏭️", callback_data=f"ath_page_{page+1}_{current_timestamp}"))
+            nav_buttons.append(types.InlineKeyboardButton("Next ⏭️", callback_data=f"ath_page_{page+1}"))
 
         if nav_buttons:
             keyboard.add(*nav_buttons)
