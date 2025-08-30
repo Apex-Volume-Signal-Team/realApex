@@ -58,7 +58,8 @@ class TelegramBot:
 
         self.bot.set_my_commands([
             telebot.types.BotCommand("start", "Start the bot"),
-            telebot.types.BotCommand("promote", "Token promotion")
+            telebot.types.BotCommand("promote", "Token promotion"),
+            telebot.types.BotCommand("remove", "Remove token (Admin only)")
         ])
 
         self.register_handlers()
@@ -77,6 +78,12 @@ class TelegramBot:
             # Only respond to promote command in private messages (DMs)
             if message.chat.type == 'private':
                 self.run_async_in_executor(self.handle_promote(message))
+
+        @self.bot.message_handler(commands=['remove'])
+        def remove_command(message):
+            # Only respond to remove command in private messages (DMs)
+            if message.chat.type == 'private':
+                self.run_async_in_executor(self.handle_remove(message))
 
         @self.bot.message_handler(func=lambda message: True)
         def handle_text(message):
@@ -138,6 +145,74 @@ class TelegramBot:
                 self.bot.send_message(message.chat.id, "Please create a wallet first by using /start command.")
         except Exception as e:
             print(f"Error in handle_promote: {e}")
+
+    async def handle_remove(self, message):
+        """Handle /remove command - Admin only"""
+        try:
+            user_id = message.from_user.id
+            
+            # Check if user is admin
+            if user_id not in self.config.ADMIN_USER_IDS:
+                self.bot.send_message(message.chat.id, "❌ Unauthorized. This command is for admins only.")
+                return
+
+            # Parse command text
+            text_parts = message.text.strip().split()
+            
+            if len(text_parts) != 2:
+                self.bot.send_message(
+                    message.chat.id, 
+                    "❌ Invalid format. Use: /remove {mint_address}\n\nExample: /remove 47BpfH7SbcVJHmQeHVRogHjyFTqoy6ggvDzxotEapump"
+                )
+                return
+
+            mint_address = text_parts[1].strip()
+            
+            # Validate mint address format (basic check)
+            if len(mint_address) < 32 or len(mint_address) > 44:
+                self.bot.send_message(message.chat.id, "❌ Invalid mint address format.")
+                return
+
+            # Check if token exists in database
+            token = await TokenService.get_token_by_mint(mint_address)
+            
+            if not token:
+                self.bot.send_message(
+                    message.chat.id, 
+                    f"❌ Token not found in database.\n\nMint: `{mint_address}`", 
+                    parse_mode='Markdown'
+                )
+                return
+
+            # Attempt to delete token
+            deletion_success = await TokenService.delete_token(mint_address)
+            
+            if deletion_success:
+                token_name = token.get('name', 'Unknown')
+                token_symbol = token.get('symbol', 'N/A')
+                
+                self.bot.send_message(
+                    message.chat.id,
+                    f"✅ Token successfully removed from database.\n\n"
+                    f"**Name:** {token_name}\n"
+                    f"**Symbol:** ${token_symbol}\n"
+                    f"**Mint:** `{mint_address}`\n\n"
+                    f"All associated data has been deleted.",
+                    parse_mode='Markdown'
+                )
+                
+                print(f"🗑️ Admin {user_id} removed token: {token_name} ({mint_address})")
+            else:
+                self.bot.send_message(
+                    message.chat.id, 
+                    f"❌ Failed to remove token from database.\n\nMint: `{mint_address}`", 
+                    parse_mode='Markdown'
+                )
+                print(f"❌ Failed to delete token {mint_address} from database")
+
+        except Exception as e:
+            print(f"Error in handle_remove: {e}")
+            self.bot.send_message(message.chat.id, "❌ An error occurred while processing the remove command.")
 
     async def handle_message(self, message):
         """Handle text messages"""
@@ -212,22 +287,38 @@ class TelegramBot:
 
             if call.data == 'confirm_payment':
                 await self.handle_payment_confirmation(call.message.chat.id, call.from_user.username or str(call.from_user.id))
-            elif call.data.startswith('ath_page_'):
-                # Handle ATH pagination with or without timestamp
+            elif call.data.startswith('ath_'):
+                # Handle ATH pagination with timestamp format: ath_{timestamp}_{page}
                 try:
                     parts = call.data.split('_')
-                    # Extract page number (always at index 2, regardless of timestamp)
-                    page = int(parts[2])
+                    if len(parts) >= 3:
+                        # New format: ath_{timestamp}_{page}
+                        timestamp = int(parts[1])
+                        page = int(parts[2])
+                    else:
+                        # Fallback for old format: ath_page_{page}
+                        page = int(parts[1]) if parts[0] == 'ath' and len(parts) == 2 else int(parts[2])
+                    
                     print(f"ATH pagination request: page {page} (callback_data: {call.data})")
                     await self.handle_ath_pagination(call, page)
                 except (ValueError, IndexError) as e:
                     print(f"Invalid ATH pagination data: {call.data}, error: {e}")
-                    # Send error message to user
-                    self.bot.answer_callback_query(
-                        call.id, 
-                        "❌ Button expired. Please wait for the next ATH update.", 
-                        show_alert=True
-                    )
+                    # Since buttons are now persistent, just log the error without showing user error
+                    print("Attempting to handle pagination anyway...")
+                    try:
+                        # Try to extract page number from any position
+                        numbers = [int(part) for part in call.data.split('_') if part.isdigit()]
+                        if numbers:
+                            page = numbers[-1]  # Take the last number as page
+                            await self.handle_ath_pagination(call, page)
+                        else:
+                            raise ValueError("No valid page number found")
+                    except:
+                        self.bot.answer_callback_query(
+                            call.id, 
+                            "❌ Invalid page request.", 
+                            show_alert=True
+                        )
         except Exception as e:
             print(f"Error in handle_callback_query: {e}")
             # Ensure we always answer the callback query
@@ -454,18 +545,24 @@ class TelegramBot:
                     )
                     last_alert_check = current_time
 
-                # Send daily ATH message at 7pm UTC (19:00)
+                # Send daily ATH message at 7pm UTC (19:00) - PROTECTED TIMING
                 from datetime import datetime, timezone
                 now_utc = datetime.now(timezone.utc)
-                if (now_utc.hour == 19 and now_utc.minute == 0 and 
-                    current_time - last_ath_daily_send >= 3540):  # 59 minutes to prevent multiple sends
-                    print("Sending daily ATH message at 7pm UTC...")
-                    from utils import send_ath_batch_message
-                    await send_ath_batch_message(
-                        self.bot,
-                        self.config.FREE_CALL_CHANNEL
-                    )
-                    last_ath_daily_send = current_time
+                # Check for 7pm UTC window (19:00-19:05) and ensure we haven't sent in the last 23 hours
+                if (now_utc.hour == 19 and 0 <= now_utc.minute <= 5 and 
+                    current_time - last_ath_daily_send >= 82800):  # 23 hours to ensure once per day
+                    print(f"Sending daily ATH message at 7pm UTC (current time: {now_utc.hour:02d}:{now_utc.minute:02d})...")
+                    try:
+                        from utils import send_ath_batch_message
+                        await send_ath_batch_message(
+                            self.bot,
+                            self.config.FREE_CALL_CHANNEL
+                        )
+                        last_ath_daily_send = current_time
+                        print("✅ Daily ATH message sent successfully")
+                    except Exception as ath_error:
+                        print(f"❌ Error sending daily ATH message: {ath_error}")
+                        # Don't update last_ath_daily_send if sending failed, so it can retry
 
                 await sleep(self.config.SCAN_AMM_INTERVAL / 1000)
 
