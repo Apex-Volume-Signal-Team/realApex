@@ -269,11 +269,6 @@ async def reply_msg(bot, channel_handle: str, free_channel: str, read_data: Dict
         calculated_multiple = current_mc / original_mc if original_mc > 0 else 1
         current_highest_multiple = read_data.get('multiple', 1)
 
-        # Only update multiple if current calculated multiple is higher than stored highest
-        highest_multiple = max(calculated_multiple, current_highest_multiple)
-        # Round to 1 decimal place
-        highest_multiple = round(highest_multiple, 1)
-
         update_data = {
             'cur_market_cap': current_mc,
             'top10_holder_percentage': safe_float_conversion(base_token_info.get('top10HoldersPercent'), 0),
@@ -281,13 +276,9 @@ async def reply_msg(bot, channel_handle: str, free_channel: str, read_data: Dict
             'dev_wallet_percentage': safe_float_conversion(base_token_info.get('devHoldPercent'), 0),
             'cur_volume': safe_float_conversion(report_info.get('totalVolume'), 0),
             'insider_wallet_percentage': safe_float_conversion(base_token_info.get('insiderHoldPercent'), 0),
-            'multiple': highest_multiple,
             'updated_at': datetime.now(),
             'drop_cnt': drop_count,
         }
-
-        if highest_multiple > current_highest_multiple:
-            print(f"New highest multiple for {read_data.get('name', 'unknown')}: {highest_multiple:.2f}x (was {current_highest_multiple:.2f}x)")
 
         msg_data = {
             'name': read_data['name'],
@@ -779,13 +770,15 @@ async def send_ath_page(bot, free_channel: str, all_ath_tokens: list, page: int,
         # Add Join Premium button first
         keyboard.add(types.InlineKeyboardButton("💎 Join Premium", url="https://t.me/onlysubsbot?start=ApexSignal"))
 
-        # Add navigation buttons without timestamps for consistency
+        # Add navigation buttons with timestamp for persistence
+        import time
+        current_timestamp = int(time.time())
         nav_buttons = []
 
         if page > 1:
-            nav_buttons.append(types.InlineKeyboardButton("⏮️ Previous", callback_data=f"ath_page_{page-1}"))
+            nav_buttons.append(types.InlineKeyboardButton("⏮️ Previous", callback_data=f"ath_{current_timestamp}_{page-1}"))
         if page < total_pages:
-            nav_buttons.append(types.InlineKeyboardButton("Next ⏭️", callback_data=f"ath_page_{page+1}"))
+            nav_buttons.append(types.InlineKeyboardButton("Next ⏭️", callback_data=f"ath_{current_timestamp}_{page+1}"))
 
         if nav_buttons:
             keyboard.add(*nav_buttons)
