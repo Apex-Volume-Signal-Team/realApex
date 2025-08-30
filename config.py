@@ -48,4 +48,8 @@ class Config:
         self.ALERT_CHECK_INTERVAL = int(os.getenv('ALERT_CHECK_INTERVAL', '1800'))  # 30 minutes in seconds
         self.FREE_CHANNEL_FORWARD_MULTIPLE = float(os.getenv('FREE_CHANNEL_FORWARD_MULTIPLE', '5.0'))
 
+        # Admin user IDs for remove command (comma-separated)
+        admin_ids_str = os.getenv('ADMIN_USER_IDS', '')
+        self.ADMIN_USER_IDS = [int(id.strip()) for id in admin_ids_str.split(',') if id.strip().isdigit()]
+
         self.PORT = int(os.getenv('PORT', '3000'))
