@@ -494,17 +494,20 @@ class TelegramBot:
 
                 for element in data:
                     try:
-                        cmp_mint = await TokenService.get_token_by_mint(element['baseToken'])
+                        mint_address = element.get('baseToken', '')
+                        if not mint_address:
+                            print("❌ No mint address found in element, skipping")
+                            continue
+
+                        # Double-check token doesn't exist in database to prevent duplicates
+                        cmp_mint = await TokenService.get_token_by_mint(mint_address)
 
                         if cmp_mint:
-                            # Only update database with current API data - NO MESSAGES HERE
-                            original_market_cap = float(cmp_mint['market_cap']) if cmp_mint['market_cap'] else 1
-                            if original_market_cap <= 0:
-                                original_market_cap = 1
-
-                            # Token already exists - let background monitoring handle updates
+                            # Token already exists - skip calling (background monitoring handles updates)
+                            print(f"🔄 Token {mint_address} already exists in database - skipping duplicate call")
+                            continue
                         else:
-                            print("🚀 ~ create_data ~ element:")
+                            print(f"🚀 ~ create_data ~ new token: {mint_address}")
                             await create_msg(
                                 self.bot,
                                 self.config.GROUP_CHAT_ID,
