@@ -93,6 +93,18 @@ async def promotion_msg(bot, channel_handle: str, element: Dict[str, Any], holde
 async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
     """Create new token message using ONLY MevX API data"""
     try:
+        # CRITICAL: Check if token already exists first to prevent duplicates
+        mint_address = element.get('baseToken', '')
+        if not mint_address:
+            print("❌ No mint address found in element")
+            return
+
+        # Check if token already exists in database
+        existing_token = await TokenService.get_token_by_mint(mint_address)
+        if existing_token:
+            print(f"🔄 Token {mint_address} already exists in database - skipping duplicate call")
+            return
+
         pumpfun_age = get_token_history_by_timestamp(element.get('createdAt', 0))
 
         # Filter conditions using MevX data
@@ -142,7 +154,6 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             return
 
         # Get exchange info from MevX API
-        mint_address = element.get('baseToken', '')
         exchange_name = element.get('factory', '')
         if mint_address.lower().endswith('bonk'):
             exchange_name = 'Bonk.fun'
@@ -203,31 +214,53 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
         from commands import should_show_preview
         disable_preview = not should_show_preview(msg, token_data.get('twitter'))
 
-        # Send message and save to database
-        sent_msg = bot.send_message(
-            channel_handle, 
-            msg, 
-            reply_markup=keyboard, 
-            parse_mode="HTML", 
-            disable_web_page_preview=disable_preview,
-            message_thread_id=config.INITIAL_CALL_TOPIC_ID
-        )
+        # Initialize message IDs
+        sent_msg_id = None
+        premium_msg_id = None
 
-        # Send to premium channel too
-        premium_msg = bot.send_message(
-            config.PREMIUM_CHANNEL,
-            msg,
-            reply_markup=keyboard,
-            parse_mode="HTML",
-            disable_web_page_preview=disable_preview
-        )
+        # Send message to main group with topic ID
+        try:
+            sent_msg = bot.send_message(
+                channel_handle, 
+                msg, 
+                reply_markup=keyboard, 
+                parse_mode="HTML", 
+                disable_web_page_preview=disable_preview,
+                message_thread_id=config.INITIAL_CALL_TOPIC_ID
+            )
+            sent_msg_id = sent_msg.message_id
+            print(f"✅ Message sent to main group (topic: {config.INITIAL_CALL_TOPIC_ID}): {token_data['name']}")
+        except Exception as main_error:
+            print(f"❌ Failed to send to main group: {main_error}")
+            # Don't return here - still try to send to premium channel
 
-        # Save token to database with both message IDs
-        token_data['msg_id'] = sent_msg.message_id
-        token_data['premium_msg_id'] = premium_msg.message_id
-        await TokenService.create_token(token_data)
+        # Send to premium channel (standalone, no topic ID)
+        try:
+            premium_msg = bot.send_message(
+                config.PREMIUM_CHANNEL,
+                msg,
+                reply_markup=keyboard,
+                parse_mode="HTML",
+                disable_web_page_preview=disable_preview
+            )
+            premium_msg_id = premium_msg.message_id
+            print(f"✅ Message sent to premium channel: {token_data['name']}")
+        except Exception as premium_error:
+            print(f"❌ Failed to send to premium channel: {premium_error}")
 
-        print(f"✅ Token called and saved: {token_data['name']} ({token_data['symbol']}) - ${format_number(market_cap)} MC")
+        # Only save to database if at least one message was sent successfully
+        if sent_msg_id or premium_msg_id:
+            # Save token to database with both message IDs
+            if sent_msg_id:
+                token_data['msg_id'] = sent_msg_id
+            if premium_msg_id:
+                token_data['premium_msg_id'] = premium_msg_id
+                
+            await TokenService.create_token(token_data)
+            print(f"✅ Token called and saved: {token_data['name']} ({token_data['symbol']}) - ${format_number(market_cap)} MC")
+            print(f"   Main group msg_id: {sent_msg_id}, Premium msg_id: {premium_msg_id}")
+        else:
+            print(f"❌ Failed to send messages to both channels - token not saved to database")
 
     except Exception as err:
         print(f"Error creating message: {err}")
