@@ -36,12 +36,14 @@ class Config:
         self.SCAN_AMM_INTERVAL = int(os.getenv('SCAN_AMM_INTERVAL', '10000'))
 
         self.MIN_MC = float(os.getenv('MIN_MC', '100000'))
+        self.MAX_MC = float(os.getenv('MAX_MC', '300000'))  # Default 50M max market cap
         self.LIMIT_TIME = float(os.getenv('LIMIT_TIME', '60'))
-        self.MIN_ALERT_VOLUME = float(os.getenv('MIN_ALERT_VOLUME', '200000'))
+        self.MIN_ALERT_VOLUME = float(os.getenv('MIN_ALERT_VOLUME', '100000'))
+        self.MAX_ALERT_VOLUME = float(os.getenv('MAX_ALERT_VOLUME', '500000'))  # Default 10M max volume
 
-        self.MIN_DEV_HOLD_PCT = float(os.getenv('MIN_DEV_HOLD_PCT', '1'))
+        self.MIN_DEV_HOLD_PCT = float(os.getenv('MIN_DEV_HOLD_PCT', '0'))
         self.MAX_DEV_HOLD_PCT = float(os.getenv('MAX_DEV_HOLD_PCT', '15'))
-        self.MIN_TOP10HOLD_PCT = float(os.getenv('MIN_TOP10HOLD_PCT', '10'))
+        self.MIN_TOP10HOLD_PCT = float(os.getenv('MIN_TOP10HOLD_PCT', '0'))
         self.MAX_TOP10HOLD_PCT = float(os.getenv('MAX_TOP10HOLD_PCT', '50'))
 
         self.ALERT_MULTIPLE_LIMIT = 2.0
