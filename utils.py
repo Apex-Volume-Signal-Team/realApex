@@ -114,15 +114,32 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
         market_cap = safe_float_conversion(element.get('marketCap'), 0)
         if market_cap < config.MIN_MC:
             return
+        
+        # Check maximum market cap
+        if market_cap > config.MAX_MC:
+            return
 
         # Get volume from MevX API response  
         report_info = element.get('report', {})
         total_volume = safe_float_conversion(report_info.get('totalVolume'), 0)
         if total_volume < config.MIN_ALERT_VOLUME:
             return
+        
+        # Check maximum alert volume
+        if total_volume > config.MAX_ALERT_VOLUME:
+            return
 
         # Get social data from MevX API
         social = base_token_info.get('social', {})
+        
+        # Check if token has at least 1 social link
+        has_social = bool(
+            social.get('twitter') or 
+            social.get('telegram') or 
+            social.get('website')
+        )
+        if not has_social:
+            return
 
         # Get exchange info from MevX API
         mint_address = element.get('baseToken', '')
