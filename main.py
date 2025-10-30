@@ -26,7 +26,8 @@ from models import Setting, IFinancial
 from services import TokenService, FinancialService, SettingService
 from commands import start_bot_msg, promote_time_msg, promote_msg, admin_promote_msg
 from utils import create_msg, reply_msg, promotion_msg, sleep, check_database_for_alerts
-from api import get_mevx_info, get_mevx_promotion_info, get_mevx_token_holders
+# from api import get_mevx_info, get_mevx_promotion_info, get_mevx_token_holders
+from api import get_tracker_info, get_tracker_promotion_info, get_tracker_token_holders
 
 app = FastAPI()
 
@@ -237,18 +238,20 @@ class TelegramBot:
 
                 promote_times = payment_details.get('promote_time', 0)
                 for i in range(promote_times):
-                    promotion_data = await get_mevx_promotion_info(text)
-                    holders = await get_mevx_token_holders(text)
+                    # promotion_data = await get_mevx_promotion_info(text)
+                    promotion_data = await get_tracker_promotion_info(text)
+                    # holders = await get_mevx_token_holders(text)
+                    # holders = await get_tracker_token_holders(text)
 
                     if not promotion_data or not isinstance(promotion_data, list):
-                        print("Error: Invalid data received from get_mevx_promotion_info()")
+                        print("Error: Invalid data received from get_tracker_promotion_info()")
                         return
 
                     await promotion_msg(
                         self.bot, 
                         self.config.GROUP_CHAT_ID, 
                         promotion_data[0], 
-                        holders
+                        self.config
                     )
                     await sleep(10)
 
@@ -485,16 +488,19 @@ class TelegramBot:
                 print('\033[2J\033[H')
                 print("\033[32mPumpfun Volume Notify Bot\033[0m\n")
 
-                data = await get_mevx_info()
+                # data = await get_mevx_info()
+                data = await get_tracker_info()
 
                 if not data or not isinstance(data, list):
-                    print("Error: Invalid data received from get_mevx_info()")
+                    # print("Error: Invalid data received from get_mevx_info()")
+                    print("Error: Invalid data received from get_tracker_info()")
                     await sleep(self.config.SCAN_AMM_INTERVAL / 1000)
                     continue
 
                 for element in data:
                     try:
-                        mint_address = element.get('baseToken', '')
+                        # mint_address = element.get('baseToken', '')
+                        mint_address = element.get('token', {}).get('mint', '')
                         if not mint_address:
                             print("❌ No mint address found in element, skipping")
                             continue

@@ -5,7 +5,8 @@ from typing import Dict, Any, List
 
 from services import TokenService, SettingService
 from commands import display_msg, multiple_msg, forward_msg, link_btn, alert_msg
-from api import get_mevx_token_holders, get_mevx_info
+# from api import get_mevx_token_holders, get_mevx_info
+from api import get_tracker_info, get_tracker_token_holders
 
 async def sleep(seconds: int):
     """Async sleep function"""
@@ -29,33 +30,29 @@ def get_token_history_by_timestamp(block_time: int) -> Dict[str, Any]:
         "minutes": total_minutes,
     }
 
-async def promotion_msg(bot, channel_handle: str, element: Dict[str, Any], holders: int):
+async def promotion_msg(bot, channel_handle: str, element: Dict[str, Any], config):
     """Send promotion message"""
     try:
         pumpfun_age = get_token_history_by_timestamp(element.get('createdAt', 0))
 
-        social = element.get('baseTokenInfo', {}).get('social', {})
-        pool_reports = element.get('poolReports', [{}] * 4)
-        buy_volume = pool_reports[3].get('buyVolume', 0) if len(pool_reports) > 3 else 0
-        sell_volume = pool_reports[3].get('sellVolume', 0) if len(pool_reports) > 3 else 0
-        total_volume = buy_volume + sell_volume
-
+        social = element.get('socials', {})
+  
         data_msg = {
-            'name': element.get('baseTokenInfo', {}).get('name', ''),
-            'symbol': element.get('baseTokenInfo', {}).get('symbol', ''),
-            'mint': element.get('baseToken', ''),
-            'marketCap': element.get('marketCap', 0),
+            'name': element.get('name', ''),
+            'symbol': element.get('symbol', ''),
+            'mint': element.get('mint', ''),
+            'marketCap': element.get('marketCapUsd', 0),
             'pumpfunAge': pumpfun_age['type'],
-            'top10HolderPercentage': element.get('baseTokenInfo', {}).get('top10HoldersPercent', 0),
-            'holderCount': holders,
-            'devWalletPercentage': element.get('baseTokenInfo', {}).get('holding', {}).get('devHoldPercent', 0),
+            'top10HolderPercentage': element.get('top10', 0),
+            'holderCount': element.get('holders',0),
+            'devWalletPercentage': element.get('dev', 0),
             'twitter': social.get('twitter', ''),
             'telegram': social.get('telegram', ''),
             'website': social.get('website', ''),
-            'volume': total_volume,
-            'insiderWalletPercentage': element.get('holding', {}).get('totalInsiderWalletHold', 0),
-            'sniperWalletPercentage': element.get('holding', {}).get('totalSniperWalletHold', 0),
-            'exchange': element.get('factory', ''),
+            'volume': element.get('volume', 0),
+            'insiderWalletPercentage': element.get('insiders', 0),
+            'sniperWalletPercentage': element.get('snipers', 0),
+            'exchange': element.get('market', ''),
             'multiple': 1,
         }
 
@@ -94,7 +91,9 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
     """Create new token message using ONLY MevX API data"""
     try:
         # CRITICAL: Check if token already exists first to prevent duplicates
-        mint_address = element.get('baseToken', '')
+        # mint_address = element.get('baseToken', '')
+        base_token_info = element.get('token', {})
+        mint_address = base_token_info.get('mint', '')
         if not mint_address:
             print("❌ No mint address found in element")
             return
@@ -105,16 +104,16 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             print(f"🔄 Token {mint_address} already exists in database - skipping duplicate call")
             return
 
-        pumpfun_age = get_token_history_by_timestamp(element.get('createdAt', 0))
+        pumpfun_age = get_token_history_by_timestamp(element.get('token', {}).get('creation', {}).get('created_time', 0))
 
         # Filter conditions using MevX data
         if pumpfun_age['minutes'] > config.LIMIT_TIME:
             return
 
         # Use MevX API data structure directly
-        base_token_info = element.get('baseTokenInfo', {})
-        dev_hold_pct = safe_float_conversion(base_token_info.get('devHoldPercent'), 0)
-        top10_hold_pct = safe_float_conversion(base_token_info.get('top10HoldersPercent'), 0)
+        risk = element.get('risk', {})
+        dev_hold_pct = safe_float_conversion(risk.get('dev', {}).get('percentage', 0), 0)
+        top10_hold_pct = safe_float_conversion(risk.get('top10', 0), 0)
 
         if not (config.MIN_DEV_HOLD_PCT <= dev_hold_pct <= config.MAX_DEV_HOLD_PCT):
             return
@@ -123,7 +122,7 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             return
 
         # Get market cap from MevX API response
-        market_cap = safe_float_conversion(element.get('marketCap'), 0)
+        market_cap = safe_float_conversion(element.get('pools', [])[0].get('marketCap', {}).get("usd", 0), 0)
         if market_cap < config.MIN_MC:
             return
         
@@ -132,8 +131,8 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             return
 
         # Get volume from MevX API response  
-        report_info = element.get('report', {})
-        total_volume = safe_float_conversion(report_info.get('totalVolume'), 0)
+        txns = element.get('pools', [])[0].get('txns', {})
+        total_volume = safe_float_conversion(txns.get('volume'), 0)
         if total_volume < config.MIN_ALERT_VOLUME:
             return
         
@@ -142,7 +141,7 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             return
 
         # Get social data from MevX API
-        social = base_token_info.get('social', {})
+        social = element.get('token', {}).get('strictSocials', {})
         
         # Check if token has at least 1 social link
         has_social = bool(
@@ -154,7 +153,7 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             return
 
         # Get exchange info from MevX API
-        exchange_name = element.get('factory', '')
+        exchange_name = element.get('pools', [])[0].get('market', '');
         if mint_address.lower().endswith('bonk'):
             exchange_name = 'Bonk.fun'
 
@@ -167,15 +166,15 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             'cur_market_cap': market_cap,
             'pumpfun_age': pumpfun_age['type'],
             'top10_holder_percentage': top10_hold_pct,
-            'holder_count': int(base_token_info.get('holderCount', 0)),
+            'holder_count': int(element.get('holders', 0)),
             'dev_wallet_percentage': dev_hold_pct,
             'twitter': social.get('twitter', ''),
             'telegram': social.get('telegram', ''),
             'website': social.get('website', ''),
             'volume': total_volume,
             'cur_volume': total_volume,
-            'insider_wallet_percentage': safe_float_conversion(base_token_info.get('insiderHoldPercent'), 0),
-            'sniper_wallet_percentage': safe_float_conversion(base_token_info.get('sniperHoldPercent'), 0),
+            'insider_wallet_percentage': safe_float_conversion(risk.get('insiders', {}).get("totalPercentage", 0), 0),
+            'sniper_wallet_percentage': safe_float_conversion(risk.get('snipers', {}).get('totalPercentage', 0), 0),
             'exchange': exchange_name,
             'created_at': datetime.now(),
             'updated_at': datetime.now(),

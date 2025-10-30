@@ -55,3 +55,4 @@ class Config:
         self.ADMIN_USER_IDS = [int(id.strip()) for id in admin_ids_str.split(',') if id.strip().isdigit()]
 
         self.PORT = int(os.getenv('PORT', '3000'))
+        self.SOLANA_TRACKER_API_KEY = os.getenv('SOLANA_TRACKER_API_KEY')
