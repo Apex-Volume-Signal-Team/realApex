@@ -83,10 +83,10 @@ class SolanaTrackerAPI:
         """Get token information from SolanaTracker API"""
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.base_url}/tokens/latest", headers=self.headers) as response:
+                async with session.get(f"{self.base_url}/tokens/trending", headers=self.headers) as response:
                     if response.status == 200:
                         data = await response.json()
-                        print(f"Trackder response data: ", data)
+                        # print(f"Trackder response data: ", data)
                         return data
                     else:
                         print(f"API request failed with status: {response.status}")

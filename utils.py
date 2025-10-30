@@ -33,31 +33,39 @@ def get_token_history_by_timestamp(block_time: int) -> Dict[str, Any]:
 async def promotion_msg(bot, channel_handle: str, element: Dict[str, Any], config):
     """Send promotion message"""
     try:
-        pumpfun_age = get_token_history_by_timestamp(element.get('createdAt', 0))
+        pumpfun_age = get_token_history_by_timestamp(element.get('token', {}).get('creation', {}).get('created_time', 0))
+        base_token_info = element.get('token', {})
+        mint_address = base_token_info.get('mint', '')
+        exchange_name = element.get('pools', [])[0].get('market', '')
+        market_cap = safe_float_conversion(element.get('pools', [])[0].get('marketCap', {}).get("usd", 0), 0)
+        risk = element.get('risk', {})
+        dev_hold_pct = safe_float_conversion(risk.get('dev', {}).get('percentage', 0), 0)
+        top10_hold_pct = safe_float_conversion(risk.get('top10', 0), 0)
+        social = element.get('token', {}).get('strictSocials', {})
+        txns = element.get('pools', [])[0].get('txns', {})
+        total_volume = safe_float_conversion(txns.get('volume'), 0)
 
-        social = element.get('socials', {})
-  
         data_msg = {
-            'name': element.get('name', ''),
-            'symbol': element.get('symbol', ''),
-            'mint': element.get('mint', ''),
-            'marketCap': element.get('marketCapUsd', 0),
+            'name': base_token_info.get('name', ''),
+            'symbol': base_token_info.get('symbol', ''),
+            'mint': mint_address,
+            'market_cap': market_cap,
             'pumpfunAge': pumpfun_age['type'],
-            'top10HolderPercentage': element.get('top10', 0),
-            'holderCount': element.get('holders',0),
-            'devWalletPercentage': element.get('dev', 0),
+            'top10_holder_percentage': top10_hold_pct,
+            'holder_count': int(element.get('holders', 0)),
+            'dev_wallet_percentage': dev_hold_pct,
             'twitter': social.get('twitter', ''),
             'telegram': social.get('telegram', ''),
             'website': social.get('website', ''),
-            'volume': element.get('volume', 0),
-            'insiderWalletPercentage': element.get('insiders', 0),
-            'sniperWalletPercentage': element.get('snipers', 0),
-            'exchange': element.get('market', ''),
+            'volume': total_volume,
+            'insider_wallet_percentage': safe_float_conversion(risk.get('insiders', {}).get("totalPercentage", 0), 0),
+            'sniper_wallet_percentage': safe_float_conversion(risk.get('snipers', {}).get('totalPercentage', 0), 0),
+            'exchange': exchange_name,
             'multiple': 1,
         }
 
         msg = display_msg(data_msg)
-        btn = link_btn(element.get('baseToken', ''), data_msg.get('symbol', ''))
+        btn = link_btn(mint_address, data_msg.get('symbol', ''))
 
         from telebot import types
         keyboard = types.InlineKeyboardMarkup()
@@ -107,8 +115,8 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
         pumpfun_age = get_token_history_by_timestamp(element.get('token', {}).get('creation', {}).get('created_time', 0))
 
         # Filter conditions using MevX data
-        if pumpfun_age['minutes'] > config.LIMIT_TIME:
-            return
+        # if pumpfun_age['minutes'] > config.LIMIT_TIME:
+        #     return
 
         # Use MevX API data structure directly
         risk = element.get('risk', {})
@@ -133,6 +141,7 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
         # Get volume from MevX API response  
         txns = element.get('pools', [])[0].get('txns', {})
         total_volume = safe_float_conversion(txns.get('volume'), 0)
+        
         if total_volume < config.MIN_ALERT_VOLUME:
             return
         
@@ -149,11 +158,12 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             social.get('telegram') or 
             social.get('website')
         )
-        if not has_social:
-            return
+        # if not has_social:
+        #     return
 
         # Get exchange info from MevX API
-        exchange_name = element.get('pools', [])[0].get('market', '');
+        exchange_name = element.get('pools', [])[0].get('market', '')
+      
         if mint_address.lower().endswith('bonk'):
             exchange_name = 'Bonk.fun'
 
@@ -181,6 +191,8 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             'multiple': 1.0,
         }
 
+        print(f"token_data", token_data)
+
         # Create display message using MevX data
         msg = display_msg({
             'name': token_data['name'],
@@ -200,7 +212,7 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
             'exchange': token_data['exchange']
         })
 
-        btn = link_btn(element.get('baseToken', ''), token_data['symbol'])
+        btn = link_btn(mint_address, token_data['symbol'])
 
         from telebot import types
         keyboard = types.InlineKeyboardMarkup()
@@ -401,21 +413,21 @@ def safe_float_conversion(value, default=0.0):
     """Safely convert value to float"""
     try:
         if value is None or value == '' or value == 'null' or value == 'undefined':
-            print(f"Debug safe_float_conversion - Value is None/empty, returning default: {default}")
+            # print(f"Debug safe_float_conversion - Value is None/empty, returning default: {default}")
             return default
         # Handle string representations of numbers
         if isinstance(value, str):
             value = value.strip()
             if value == '':
-                print(f"Debug safe_float_conversion - Empty string after strip, returning default: {default}")
+                # print(f"Debug safe_float_conversion - Empty string after strip, returning default: {default}")
                 return default
 
         result = float(value)
-        print(f"Debug safe_float_conversion - Successfully converted {value} to {result}")
+        # print(f"Debug safe_float_conversion - Successfully converted {value} to {result}")
         return result
     except (ValueError, TypeError, AttributeError) as e:
-        print(f"Debug safe_float_conversion - Failed to convert {value} (type: {type(value)}): {e}")
-        print(f"Debug safe_float_conversion - Returning default: {default}")
+        # print(f"Debug safe_float_conversion - Failed to convert {value} (type: {type(value)}): {e}")
+        # print(f"Debug safe_float_conversion - Returning default: {default}")
         return default
 
 
