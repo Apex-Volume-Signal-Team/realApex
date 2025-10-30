@@ -228,16 +228,25 @@ async def create_msg(bot, channel_handle: str, element: Dict[str, Any], config):
         # Initialize message IDs
         sent_msg_id = None
         premium_msg_id = None
+        print("🐍 File: realApex/utils.py | Line: 227 | undefined ~ msg",msg)
 
         # Send message to main group with topic ID
         try:
+            # sent_msg = bot.send_message(
+            #     channel_handle, 
+            #     msg, 
+            #     reply_markup=keyboard, 
+            #     parse_mode="HTML", 
+            #     disable_web_page_preview=disable_preview,
+            #     message_thread_id=config.INITIAL_CALL_TOPIC_ID
+            # )
             sent_msg = bot.send_message(
                 channel_handle, 
                 msg, 
                 reply_markup=keyboard, 
                 parse_mode="HTML", 
                 disable_web_page_preview=disable_preview,
-                message_thread_id=config.INITIAL_CALL_TOPIC_ID
+                # message_thread_id=config.INITIAL_CALL_TOPIC_ID
             )
             sent_msg_id = sent_msg.message_id
             print(f"✅ Message sent to main group (topic: {config.INITIAL_CALL_TOPIC_ID}): {token_data['name']}")
@@ -291,20 +300,22 @@ async def reply_msg(bot, channel_handle: str, free_channel: str, read_data: Dict
         print(f"Debug - Read data keys: {list(read_data.keys()) if read_data else 'None'}")
 
         # Check for marketCap in different possible locations
-        market_cap_value = None
-        if 'marketCap' in element:
-            market_cap_value = element['marketCap']
-            print(f"Debug - Found marketCap in element: {market_cap_value} (type: {type(market_cap_value)})")
-        elif 'market_cap' in element:
-            market_cap_value = element['market_cap']
-            print(f"Debug - Found market_cap in element: {market_cap_value} (type: {type(market_cap_value)})")
-        elif 'baseTokenInfo' in element and 'marketCap' in element['baseTokenInfo']:
-            market_cap_value = element['baseTokenInfo']['marketCap']
-            print(f"Debug - Found marketCap in baseTokenInfo: {market_cap_value} (type: {type(market_cap_value)})")
-        else:
-            print(f"Error in reply_msg: marketCap not found in element. Available keys: {list(element.keys())}")
-            print(f"Debug - Full element structure: {element}")
-            return
+        # market_cap_value = None
+        # if 'marketCap' in element:
+        #     market_cap_value = element['marketCap']
+        #     print(f"Debug - Found marketCap in element: {market_cap_value} (type: {type(market_cap_value)})")
+        # elif 'market_cap' in element:
+        #     market_cap_value = element['market_cap']
+        #     print(f"Debug - Found market_cap in element: {market_cap_value} (type: {type(market_cap_value)})")
+        # elif 'baseTokenInfo' in element and 'marketCap' in element['baseTokenInfo']:
+        #     market_cap_value = element['baseTokenInfo']['marketCap']
+        #     print(f"Debug - Found marketCap in baseTokenInfo: {market_cap_value} (type: {type(market_cap_value)})")
+        # else:
+        #     print(f"Error in reply_msg: marketCap not found in element. Available keys: {list(element.keys())}")
+        #     print(f"Debug - Full element structure: {element}")
+        #     return
+        
+        market_cap_value = safe_float_conversion(element.get('pools', [])[0].get('marketCap', {}).get("usd", 0), 0)
 
         current_date = datetime.now().day
         bot_info = await SettingService.get_bot_setting()
@@ -319,24 +330,25 @@ async def reply_msg(bot, channel_handle: str, free_channel: str, read_data: Dict
         print(f"Debug - Original MC after conversion: {original_mc} (type: {type(original_mc)})")
 
         # Ensure original_mc is not zero to avoid division by zero
-        if original_mc <= 0:
-            print(f"Debug - Original MC was <= 0, setting to 1")
-            original_mc = 1
+        base_token_info = element.get('token', {})
+        risk = element.get('risk', {})
+        total_volume = safe_float_conversion(txns.get('volume'), 0)
+        # if original_mc <= 0:
+        #     print(f"Debug - Original MC was <= 0, setting to 1")
+        #     original_mc = 1
 
-        # Safely access nested dictionaries
-        base_token_info = element.get('baseTokenInfo', {})
-        report_info = element.get('report', {})
+        # # Safely access nested dictionaries
 
-        calculated_multiple = current_mc / original_mc if original_mc > 0 else 1
-        current_highest_multiple = read_data.get('multiple', 1)
+        # calculated_multiple = current_mc / original_mc if original_mc > 0 else 1
+        # current_highest_multiple = read_data.get('multiple', 1)
 
         update_data = {
             'cur_market_cap': current_mc,
-            'top10_holder_percentage': safe_float_conversion(base_token_info.get('top10HoldersPercent'), 0),
-            'holder_count': int(safe_float_conversion(base_token_info.get('holderCount'), 0)),
-            'dev_wallet_percentage': safe_float_conversion(base_token_info.get('devHoldPercent'), 0),
-            'cur_volume': safe_float_conversion(report_info.get('totalVolume'), 0),
-            'insider_wallet_percentage': safe_float_conversion(base_token_info.get('insiderHoldPercent'), 0),
+            'top10_holder_percentage': safe_float_conversion(risk.get('top10', 0), 0),
+            'holder_count': int(element.get('holders', 0)),
+            'dev_wallet_percentage': safe_float_conversion(risk.get('dev', {}).get('percentage', 0), 0),
+            'cur_volume': total_volume,
+            'insider_wallet_percentage': safe_float_conversion(risk.get('insiders', {}).get("totalPercentage", 0), 0),
             'updated_at': datetime.now(),
             'drop_cnt': drop_count,
         }
@@ -372,7 +384,7 @@ async def reply_msg(bot, channel_handle: str, free_channel: str, read_data: Dict
                 parse_mode="HTML",
                 reply_to_message_id=read_data.get('msg_id'),
                 disable_web_page_preview=True,
-                message_thread_id=config.INITIAL_CALL_TOPIC_ID
+                # message_thread_id=config.INITIAL_CALL_TOPIC_ID
             )
         except Exception as telegram_error:
             # If reply fails (message not found), send without reply
@@ -383,7 +395,7 @@ async def reply_msg(bot, channel_handle: str, free_channel: str, read_data: Dict
                     msg, 
                     parse_mode="HTML",
                     disable_web_page_preview=True,
-                    message_thread_id=config.INITIAL_CALL_TOPIC_ID
+                    # message_thread_id=config.INITIAL_CALL_TOPIC_ID
                 )
             else:
                 raise telegram_error
